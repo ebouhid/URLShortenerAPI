@@ -10,6 +10,14 @@
   (:gen-class))
 ;; (load-file "src/shortener.clj")
 
+  (def url-map (atom {}))
+  ;; atom manipulation functions
+  (defn store-url [id url]
+  (swap! url-map assoc id url))
+
+  (defn get-url [id]
+  (get @url-map id))
+
 ; Simple Body Page
 (defn simple-body-page [req]
   {:status  200
@@ -52,36 +60,45 @@
                (conj result ((set/map-invert symbolmap) (mod decNumber 62))))))))
 
   ;; gen-id
-  (defn gen-id [req]
+  (defn gen-id []
   (rand-int 350000000))
 
   (defn shorten [req]
-    {
-      :status 200
-      :headers {"Content-Type" "text/html"}
-      :body    (str (hash-id (gen-id req)))
-    }
+    (let [id (hash-id(gen-id))]
+      (store-url id (str (:query-string req)))
+      {
+        :status 200
+        :headers {"Content-Type" "text/html"}
+        :body    id
+      }
+    )
   )
 
-  ;; atom manipulation functions
-  (defn store-url [id url]
-  (swap! url-map assoc id url))
+  (defn retrieve-url [hash]
+   (get @url-map hash)
+  )
 
-  (defn get-url [id]
-  (get @url-map id))
+  (defn redirect [req]
+    (let [hash (str (:query-string req))]
+      {
+        :status 200
+        :headers {"Content-Type" "text/html"}
+        :body (retrieve-url hash)
+      }
+    )
+  )
 
   (defroutes app-routes
   (GET "/" [] simple-body-page)
   (GET "/request" [] request-example)
   (GET "/shorten" [] shorten)
   (GET "/eae" [] hello-name)
-  ;; (GET "/redirect" [] )
+  (GET "/redirect" [] redirect)
   (route/not-found "Error, page not found!"))
 
 (defn -main
   "This is our main entry point"
   [& args]
-  (def url-map (atom {}))
   (let [port (Integer/parseInt (or (System/getenv "PORT") "3000"))]
     ; Run the server with Ring.defaults middleware
     (server/run-server (wrap-defaults #'app-routes site-defaults) {:port port})
