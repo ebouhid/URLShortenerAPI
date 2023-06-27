@@ -11,8 +11,10 @@
                  ; Ring defaults - for query params etc
                  [ring/ring-defaults "0.3.2"]
                  ; Clojure data.JSON library
-                 [org.clojure/data.json "0.2.6"]]
-  
+                 [org.clojure/data.json "0.2.6"]
+                 ; Datomic DB
+                 [com.datomic/datomic-free "0.9.5697"]]
+
   :main ^:skip-aot urlshortener.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all
