@@ -10,33 +10,41 @@
             [datomic.api :as d]
             [urlshortener.env :as env])
   (:gen-class))
-;; (load-file "src/shortener.clj")
 
-(def url-map (atom {}))
-  ;; atom manipulation functions
+; define schema
+(def url-schema [{:db/ident :url/id
+                  :db/valueType :db.type/string
+                  :db/cardinality :db.cardinality/one
+                  :db/doc "URL_ID"}
+                 {:db/ident :url/url
+                  :db/valueType :db.type/string
+                  :db/cardinality :db.cardinality/one
+                  :db/doc "URL"}])
+(def url-map (atom {})) ;; atom declaration
+;; atom manipulation functions
 (defn store-url [id url]
   (swap! url-map assoc id url))
+(defn retrieve-url [hash]
+  (get @url-map hash))
 
-
-; Datomic manimpulation functions
-
-
-(defn store-url-datomic [id url]
+(def conn (atom nil)) ;; Datomic declaration (will be initialized in -main)
+;; Datomic manimpulation functions
+(defn store-url-datomic [id url conn]
   (let [temp-id (d/tempid :db.part/user)]
-    (d/transact (d/connect env/datomic-uri)
-                [{:db/id temp-id
-                  :url url
-                  :id id}])))
+    (d/transact @conn
+                [{:url/id (str id)
+                  :url/url url}])))
 
-(defn retrieve-url-datomic [id]
-  (let [result (d/q '[:find ?url
+(defn retrieve-url-datomic [id conn]
+  (let [db (d/db @conn)
+        result (d/q '[:find ?url
                       :where
-                      [?e :id ?id]
-                      [?e :url ?url]]
-                    (d/db (d/connect env/datomic-uri)))
-        id (d/entid (d/db (d/connect env/datomic-uri)) id)]
-    (when-let [[url] result]
-      url)))
+                      [?e :url/id ?id]
+                      [?e :url/url ?url]]
+                    db id)]
+    (first (first result))))
+
+  ; URL Shortener
 ; Simple Body Page
 (defn simple-body-page [req]
   {:status  200
@@ -84,19 +92,16 @@
 
 (defn shorten [req]
   (let [id (hash-id (gen-id))]
-    (store-url-datomic id (str (:query-string req)))
+    (store-url-datomic id (str (:query-string req)) conn)
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body    id}))
-
-(defn retrieve-url [hash]
-  (get @url-map hash))
 
 (defn redirect [req]
   (let [hash (str (:query-string req))]
     {:status 200
      :headers {"Content-Type" "text/html"}
-     :body (retrieve-url-datomic hash)}))
+     :body (retrieve-url-datomic hash conn)}))
 
 (defroutes app-routes
   (GET "/" [] simple-body-page)
@@ -110,9 +115,12 @@
   "This is our main entry point"
   [& args]
   (let [port (Integer/parseInt (or (System/getenv "PORT") "3000"))
-        db (d/create-database env/datomic-uri)]
+        db (d/create-database env/datomic-uri)
+        _ (reset! conn (d/connect env/datomic-uri))]
+
+    ; transact schema
+    (d/transact @conn url-schema)
     ; Run the server with Ring.defaults middleware
     (server/run-server (wrap-defaults #'app-routes site-defaults) {:port port})
     ; Run the server without ring defaults
-    ;(server/run-server #'app-routes {:port port})
     (println (str "Running webserver at http:/127.0.0.1:" port "/"))))
