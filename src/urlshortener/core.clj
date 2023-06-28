@@ -27,25 +27,33 @@
 (defn retrieve-url [hash]
   (get @url-map hash))
 
-(def conn (atom nil)) ;; Datomic declaration (will be initialized in -main)
+;; (def conn (atom nil)) ;; Datomic declaration (will be initialized in -main)
 ;; Datomic manimpulation functions
-(defn store-url-datomic [id url conn]
-  (let [temp-id (d/tempid :db.part/user)]
-    (d/transact @conn
-                [{:url/id (str id)
-                  :url/url url}])))
+(defn store-url-datomic [id url]
+  (let [conn (d/connect env/datomic-uri)
+        temp-id (d/tempid :db.part/user)
+        tx-data [{:url/id id
+                  :url/url url}]]
+    (d/transact conn tx-data)
+    conn))
 
-(defn retrieve-url-datomic [id conn]
-  (let [db (d/db @conn)
+(defn retrieve-url-datomic [id]
+  (let [conn (d/connect env/datomic-uri)
+        db (d/db conn)
         result (d/q '[:find ?url
                       :where
                       [?e :url/id ?id]
                       [?e :url/url ?url]]
                     db id)]
-    (first (first result))))
+    (if (empty? result)
+      nil
+      (first (first result)))))
+
 
   ; URL Shortener
 ; Simple Body Page
+
+
 (defn simple-body-page [req]
   {:status  200
    :headers {"Content-Type" "text/html"}
@@ -91,17 +99,22 @@
   (rand-int 350000000))
 
 (defn shorten [req]
-  (let [id (hash-id (gen-id))]
-    (store-url-datomic id (str (:query-string req)) conn)
+  (let [id (hash-id (gen-id))
+        url (str (:query-string req))]
+    (store-url-datomic id url)
     {:status 200
      :headers {"Content-Type" "text/html"}
-     :body    id}))
+     :body    (str "Shortened URL: " (str "http://127.0.0.1:" 3000 "/redirect?" id))}))
 
 (defn redirect [req]
-  (let [hash (str (:query-string req))]
-    {:status 200
-     :headers {"Content-Type" "text/html"}
-     :body (retrieve-url-datomic hash conn)}))
+  (let [hash (str (:query-string req))
+        url (retrieve-url-datomic hash)]
+    (if url
+      {:status 302
+       :headers {"Location" url}}
+      {:status 404
+       :headers {"Content-Type" "text/html"}
+       :body "URL not found"})))
 
 (defroutes app-routes
   (GET "/" [] simple-body-page)
@@ -115,11 +128,10 @@
   "This is our main entry point"
   [& args]
   (let [port (Integer/parseInt (or (System/getenv "PORT") "3000"))
-        db (d/create-database env/datomic-uri)
-        _ (reset! conn (d/connect env/datomic-uri))]
+        db (d/create-database env/datomic-uri)]
 
     ; transact schema
-    (d/transact @conn url-schema)
+    (d/transact (d/connect env/datomic-uri) url-schema)
     ; Run the server with Ring.defaults middleware
     (server/run-server (wrap-defaults #'app-routes site-defaults) {:port port})
     ; Run the server without ring defaults
