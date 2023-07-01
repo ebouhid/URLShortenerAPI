@@ -1,3 +1,3 @@
 (ns urlshortener.env)
 
-(def datomic-uri "datomic:mem://urlshortener-db")
+(def datomic-uri "datomic:mem://urlshortener")
