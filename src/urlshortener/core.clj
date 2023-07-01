@@ -18,36 +18,45 @@
 (def conn (d/connect env/datomic-uri))
 
 ; define schema
-(def url-schema [{:db/ident :url/id
+(def url-schema [{:db/ident :id
                   :db/valueType :db.type/string
                   :db/cardinality :db.cardinality/one
                   :db/doc "URL_ID"}
-                 {:db/ident :url/url
+                 {:db/ident :url
                   :db/valueType :db.type/string
                   :db/cardinality :db.cardinality/one
                   :db/doc "URL"}])
-(def url-map (atom {})) ;; atom declaration
-;; atom manipulation functions
-(defn store-url [id url]
-  (swap! url-map assoc id url))
-(defn retrieve-url [hash]
-  (get @url-map hash))
+
+    ; transact schema
+(d/transact conn url-schema)
+
+;; (def url-map (atom {})) ;; atom declaration
+;; ;; atom manipulation functions
+;; (defn store-url [id url]
+;;   (swap! url-map assoc id url))
+;; (defn retrieve-url [hash]
+;;   (get @url-map hash))
 
 ;; Datomic manimpulation functions
 (defn store-url-datomic [id url conn]
   (let [temp-id (d/tempid :db.part/user)
-        tx-data [{:url/id id
-                  :url/url url}]]
-    (d/transact conn tx-data)
+        tx-data [{:id id
+                  :url url}]]
+    (println "transact out: " (d/transact conn tx-data))
+    (println "id: " id)
+    (println "url: " url)
     conn))
 
 (defn retrieve-url-datomic [id conn]
   (let [db (d/db conn)
-        result (d/q '[:find ?url
+        result (d/q '[:find ?url ?e
+                      :in $ ?id
                       :where
-                      [?e :url/id ?id]
-                      [?e :url/url ?url]]
+                      [?e :id ?id]
+                      [?e :url ?url]]
                     db id)]
+    (println "queried id: " id)
+    (println "result: " result)
     (if (empty? result)
       nil
       (first (first result)))))
@@ -131,9 +140,6 @@
   "This is our main entry point"
   [& args]
   (let [port (Integer/parseInt (or (System/getenv "PORT") "3000"))]
-
-    ; transact schema
-    (d/transact conn url-schema)
 
     ; Run the server with Ring.defaults middleware
     (server/run-server (wrap-defaults #'app-routes site-defaults) {:port port})
