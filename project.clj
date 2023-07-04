@@ -13,7 +13,8 @@
                  ; Clojure data.JSON library
                  [org.clojure/data.json "0.2.6"]
                  ; Datomic DB
-                 [com.datomic/datomic-free "0.9.5697"]]
+                 [com.datomic/datomic-free "0.9.5697"]
+                 [com.datomic/client-cloud "0.8.113"]]
 
   :main ^:skip-aot urlshortener.core
   :target-path "target/%s"

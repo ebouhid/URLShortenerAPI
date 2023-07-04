@@ -7,15 +7,23 @@
             [clojure.string :as str]
             [clojure.data.json :as json]
             [clojure.set :as set]
-            [datomic.api :as d]
+            [datomic.client.api :as d]
             [urlshortener.env :as env])
   (:gen-class))
 
+;; aws configs
+(def cfg {:server-type :ion
+          :system "myclojureapp"
+          :region "us-east-1"
+          :endpoint env/datomic-aws-uri})
+
+(def client (d/client cfg))
+
 ;; declare db
-(def db (d/create-database env/datomic-uri))
+(d/create-database client)
 
 ;; define connection function
-(def conn (d/connect env/datomic-uri))
+(def conn (d/connect client))
 
 ; define schema
 (def url-schema [{:db/ident :id
@@ -29,6 +37,9 @@
 
     ; transact schema
 (d/transact conn url-schema)
+
+;; grab a database value
+(def db (d/db conn))
 
 ;; (def url-map (atom {})) ;; atom declaration
 ;; ;; atom manipulation functions
