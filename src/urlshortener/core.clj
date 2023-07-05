@@ -12,18 +12,19 @@
   (:gen-class))
 
 ;; aws configs
-(def cfg {:server-type :ion
-          :system "myclojureapp"
+(def cfg {:server-type :cloud
+          :system "datomic-functional"
           :region "us-east-1"
-          :endpoint env/datomic-aws-uri})
+          :endpoint "https://ro5a8qdla8.execute-api.us-east-1.amazonaws.com"
+          :creds-profile "accesstocloj"})
 
 (def client (d/client cfg))
 
 ;; declare db
-(d/create-database client)
+(d/create-database client {:db-name "clojureprojfin"})
 
 ;; define connection function
-(def conn (d/connect client))
+(def conn (d/connect client {:db-name "clojureprojfin"}))
 
 ; define schema
 (def url-schema [{:db/ident :id
