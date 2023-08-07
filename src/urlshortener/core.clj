@@ -13,18 +13,18 @@
 
 ;; aws configs
 (def cfg {:server-type :cloud
-          :system "datomic-functional"
+          :system "ClojURLShortener"
           :region "us-east-1"
-          :endpoint "https://ro5a8qdla8.execute-api.us-east-1.amazonaws.com"
+          :endpoint "https://2l7huiwyn5.execute-api.us-east-1.amazonaws.com"
           :creds-profile "accesstocloj"})
 
 (def client (d/client cfg))
 
 ;; declare db
-(d/create-database client {:db-name "clojureprojfin"})
+(d/create-database client {:db-name "clojurlshortener"})
 
 ;; define connection function
-(def conn (d/connect client {:db-name "clojureprojfin"}))
+(def conn (d/connect client {:db-name "clojurlshortener"}))
 
 ; define schema
 (def url-schema [{:db/ident :id
